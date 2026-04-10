@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════════════
-#  Flutter Development Environment Setup Script
-#  Supports: Ubuntu/Debian Linux, macOS (Intel & Apple Silicon)
+#  Flutter Android Development Environment Setup Script (Linux)
+#  Supports: Ubuntu/Debian Linux
 #  
 #  This script will:
 #    1. Detect your operating system and architecture
@@ -45,14 +45,7 @@ HAS_UNZIP=0
 HAS_XZ=0
 HAS_ZIP=0
 HAS_JAVA=0
-HAS_CLANG=0
-HAS_CMAKE=0
-HAS_NINJA=0
-HAS_PKGCONFIG=0
-HAS_GTK3=0
-HAS_LIBSTDCPP=0
-HAS_GLU=0
-HAS_CHROME=0
+HAS_ANDROID_STUDIO=0
 HAS_FLUTTER=0
 HAS_DART=0
 HAS_ANDROID_CMDLINE=0
@@ -60,10 +53,6 @@ HAS_ANDROID_PLATFORM_TOOLS=0
 HAS_ANDROID_BUILD_TOOLS=0
 HAS_ANDROID_PLATFORM=0
 HAS_ENV_CONFIGURED=0
-# macOS only
-HAS_BREW=0
-HAS_XCODE_CLT=0
-HAS_COCOAPODS=0
 
 MISSING_COUNT=0
 INSTALLED_COUNT=0
@@ -75,9 +64,9 @@ print_banner() {
     echo -e "${CYAN}${BOLD}"
     echo "  ╔═══════════════════════════════════════════════════════════╗"
     echo "  ║                                                           ║"
-    echo "  ║        🦋  Flutter Dev Environment Setup  🦋              ║"
+    echo "  ║     🦋  Flutter Android Dev Environment Setup  🦋         ║"
     echo "  ║                                                           ║"
-    echo "  ║   Automated installer for Linux & macOS                   ║"
+    echo "  ║   Automated installer for Linux (Ubuntu/Debian)           ║"
     echo "  ║                                                           ║"
     echo "  ╚═══════════════════════════════════════════════════════════╝"
     echo -e "${NC}"
@@ -136,10 +125,6 @@ detect_os() {
                 fail "This script currently supports Ubuntu/Debian-based Linux distributions only (requires apt-get)."
             fi
             ;;
-        Darwin*)
-            OS_TYPE="macos"
-            OS_NAME="macOS $(sw_vers -productVersion 2>/dev/null || echo 'unknown')"
-            ;;
         *)
             fail "Unsupported operating system: $(uname -s). Use setup_flutter.ps1 for Windows."
             ;;
@@ -176,11 +161,6 @@ cmd_version() {
         return 0
     fi
     return 1
-}
-
-# Helper: check if a dpkg package is installed (Linux only)
-dpkg_installed() {
-    dpkg -s "$1" &>/dev/null 2>&1
 }
 
 check_existing() {
@@ -234,58 +214,38 @@ check_existing() {
     echo -e "  ${CYAN}└─────────────────────────────────────────────────────────────────┘${NC}"
     echo ""
 
-    # ── Platform-Specific Dependencies ──────────────────
-    if [ "$OS_TYPE" = "linux" ]; then
-        echo -e "  ${CYAN}┌─ Linux Desktop Build Tools ─────────────────────────────────────┐${NC}"
+    # ── Android Studio ─────────────────────────────────
+    echo -e "  ${CYAN}┌─ Android Studio ──────────────────────────────────────────────────┐${NC}"
 
-        if ver=$(cmd_version clang); then HAS_CLANG=1; fi
-        status_row "clang" "$ver" $HAS_CLANG
-
-        if ver=$(cmd_version cmake); then HAS_CMAKE=1; fi
-        status_row "cmake" "$ver" $HAS_CMAKE
-
-        if ver=$(cmd_version ninja "--version"); then HAS_NINJA=1; fi
-        status_row "ninja-build" "$ver" $HAS_NINJA
-
-        if ver=$(cmd_version pkg-config); then HAS_PKGCONFIG=1; fi
-        status_row "pkg-config" "$ver" $HAS_PKGCONFIG
-
-        if dpkg_installed libgtk-3-dev; then HAS_GTK3=1; ver="$(dpkg -s libgtk-3-dev 2>/dev/null | grep '^Version:' | awk '{print $2}')"; else ver=""; fi
-        status_row "libgtk-3-dev" "$ver" $HAS_GTK3
-
-        if dpkg_installed libstdc++-12-dev; then HAS_LIBSTDCPP=1; ver="installed"; else ver=""; fi
-        status_row "libstdc++-12-dev" "$ver" $HAS_LIBSTDCPP
-
-        if dpkg_installed libglu1-mesa; then HAS_GLU=1; ver="installed"; else ver=""; fi
-        status_row "libglu1-mesa (OpenGL)" "$ver" $HAS_GLU
-
-        echo -e "  ${CYAN}└─────────────────────────────────────────────────────────────────┘${NC}"
-        echo ""
-
-        echo -e "  ${CYAN}┌─ Browser (Web Development) ───────────────────────────────────┐${NC}"
-        if command -v google-chrome &>/dev/null || command -v google-chrome-stable &>/dev/null; then
-            HAS_CHROME=1
-            ver=$(google-chrome --version 2>/dev/null || google-chrome-stable --version 2>/dev/null || echo "installed")
+    ver=""
+    # Check common Android Studio install locations on Linux
+    local as_paths=(
+        "/opt/android-studio/bin/studio.sh"
+        "/usr/local/android-studio/bin/studio.sh"
+        "$HOME/android-studio/bin/studio.sh"
+        "/snap/android-studio/current/android-studio/bin/studio.sh"
+    )
+    for as_path in "${as_paths[@]}"; do
+        if [ -f "$as_path" ]; then
+            HAS_ANDROID_STUDIO=1
+            ver="installed @ $(dirname "$(dirname "$as_path")")"
+            break
         fi
-        status_row "Google Chrome" "$ver" $HAS_CHROME
-        echo -e "  ${CYAN}└─────────────────────────────────────────────────────────────────┘${NC}"
-        echo ""
-
-    elif [ "$OS_TYPE" = "macos" ]; then
-        echo -e "  ${CYAN}┌─ macOS Dependencies ────────────────────────────────────────────┐${NC}"
-
-        if command -v brew &>/dev/null; then HAS_BREW=1; ver=$(brew --version 2>/dev/null | head -1); else ver=""; fi
-        status_row "Homebrew" "$ver" $HAS_BREW
-
-        if xcode-select -p &>/dev/null; then HAS_XCODE_CLT=1; ver=$(xcode-select -p 2>/dev/null); else ver=""; fi
-        status_row "Xcode Command Line Tools" "$ver" $HAS_XCODE_CLT
-
-        if ver=$(cmd_version pod); then HAS_COCOAPODS=1; fi
-        status_row "CocoaPods" "$ver" $HAS_COCOAPODS
-
-        echo -e "  ${CYAN}└─────────────────────────────────────────────────────────────────┘${NC}"
-        echo ""
+    done
+    # Also check if it's available via command/snap
+    if [ $HAS_ANDROID_STUDIO -eq 0 ]; then
+        if command -v android-studio &>/dev/null; then
+            HAS_ANDROID_STUDIO=1
+            ver="installed (snap)"
+        elif snap list android-studio &>/dev/null 2>&1; then
+            HAS_ANDROID_STUDIO=1
+            ver="installed (snap)"
+        fi
     fi
+    status_row "Android Studio" "$ver" $HAS_ANDROID_STUDIO
+
+    echo -e "  ${CYAN}└─────────────────────────────────────────────────────────────────┘${NC}"
+    echo ""
 
     # ── Flutter & Dart ──────────────────────────────────
     echo -e "  ${CYAN}┌─ Flutter SDK ───────────────────────────────────────────────────┐${NC}"
@@ -410,8 +370,8 @@ check_existing() {
 
 # ─── Install System Dependencies ─────────────────────────────────
 
-install_dependencies_linux() {
-    print_step "3" "Installing Missing System Dependencies (Linux)"
+install_dependencies() {
+    print_step "3" "Installing Missing System Dependencies"
 
     # Collect missing apt packages
     local pkgs_to_install=()
@@ -422,14 +382,7 @@ install_dependencies_linux() {
     if [ $HAS_UNZIP -eq 0 ];     then pkgs_to_install+=(unzip); fi
     if [ $HAS_XZ -eq 0 ];        then pkgs_to_install+=(xz-utils); fi
     if [ $HAS_ZIP -eq 0 ];       then pkgs_to_install+=(zip); fi
-    if [ $HAS_GLU -eq 0 ];       then pkgs_to_install+=(libglu1-mesa); fi
     if [ $HAS_JAVA -eq 0 ];      then pkgs_to_install+=(openjdk-17-jdk); fi
-    if [ $HAS_CLANG -eq 0 ];     then pkgs_to_install+=(clang); fi
-    if [ $HAS_CMAKE -eq 0 ];     then pkgs_to_install+=(cmake); fi
-    if [ $HAS_NINJA -eq 0 ];     then pkgs_to_install+=(ninja-build); fi
-    if [ $HAS_PKGCONFIG -eq 0 ]; then pkgs_to_install+=(pkg-config); fi
-    if [ $HAS_GTK3 -eq 0 ];      then pkgs_to_install+=(libgtk-3-dev); fi
-    if [ $HAS_LIBSTDCPP -eq 0 ]; then pkgs_to_install+=(libstdc++-12-dev); fi
 
     # Always include these basics if any package needs installing
     if [ ${#pkgs_to_install[@]} -gt 0 ]; then
@@ -450,94 +403,65 @@ install_dependencies_linux() {
         success "System packages installed."
     fi
 
-    # Chrome (separate — uses .deb)
-    if [ $HAS_CHROME -eq 0 ]; then
-        echo ""
-        info "Installing Google Chrome (for web development)..."
-        wget -qO /tmp/google-chrome.deb "https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb" 2>/dev/null && \
-        sudo dpkg -i /tmp/google-chrome.deb 2>/dev/null || sudo apt-get install -fy 2>/dev/null && \
-        rm -f /tmp/google-chrome.deb && \
-        success "Google Chrome installed." || \
-        warn "Could not install Chrome automatically. Install it manually for web development."
-    else
-        success "Google Chrome already installed. Skipping."
-    fi
-
     echo ""
-    success "Linux system dependencies done!"
+    success "System dependencies done!"
 }
 
-install_dependencies_macos() {
-    print_step "3" "Installing Missing System Dependencies (macOS)"
+# ─── Install Android Studio ──────────────────────────────────────
 
-    # Homebrew
-    if [ $HAS_BREW -eq 0 ]; then
-        info "Installing Homebrew..."
-        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-        if [ "$OS_ARCH" = "arm64" ]; then
-            eval "$(/opt/homebrew/bin/brew shellenv)"
-        fi
-        success "Homebrew installed."
-    else
-        success "Homebrew already installed. Skipping."
+install_android_studio() {
+    print_step "3b" "Android Studio"
+
+    if [ $HAS_ANDROID_STUDIO -eq 1 ]; then
+        success "Android Studio is already installed. Skipping."
+        return
     fi
 
-    # Core utilities via brew
-    local brew_pkgs=()
-    if [ $HAS_GIT -eq 0 ];   then brew_pkgs+=(git); fi
-    if [ $HAS_CURL -eq 0 ];  then brew_pkgs+=(curl); fi
-    if [ $HAS_WGET -eq 0 ];  then brew_pkgs+=(wget); fi
-    if [ $HAS_UNZIP -eq 0 ]; then brew_pkgs+=(unzip); fi
+    info "Installing Android Studio..."
 
-    if [ ${#brew_pkgs[@]} -gt 0 ]; then
-        info "Installing core utilities: ${brew_pkgs[*]}"
-        brew install "${brew_pkgs[@]}" 2>/dev/null || true
-        success "Core utilities installed."
-    else
-        success "Core utilities already installed. Skipping."
+    # Try snap first (easiest on Ubuntu)
+    if command -v snap &>/dev/null; then
+        info "Installing via snap (recommended for Ubuntu)..."
+        sudo snap install android-studio --classic && \
+        success "Android Studio installed via snap!" && return || \
+        warn "Snap installation failed, trying manual download..."
     fi
 
-    # Java
-    if [ $HAS_JAVA -eq 0 ]; then
-        info "Installing Java JDK 17..."
-        brew install openjdk@17 2>/dev/null || true
-        if [ -d "/opt/homebrew/opt/openjdk@17" ]; then
-            sudo ln -sfn /opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk /Library/Java/JavaVirtualMachines/openjdk-17.jdk 2>/dev/null || true
-        elif [ -d "/usr/local/opt/openjdk@17" ]; then
-            sudo ln -sfn /usr/local/opt/openjdk@17/libexec/openjdk.jdk /Library/Java/JavaVirtualMachines/openjdk-17.jdk 2>/dev/null || true
-        fi
-        success "Java JDK 17 installed."
-    else
-        success "Java JDK 17 already installed. Skipping."
+    # Fallback: download and extract tarball
+    local as_version="2024.2.2.13"
+    local as_url="https://redirector.gvt1.com/edgedl/android/studio/ide-zips/${as_version}/android-studio-${as_version}-linux.tar.gz"
+    local tmp_tar="/tmp/android-studio.tar.gz"
+
+    info "Downloading Android Studio..."
+    item "URL: ${as_url}"
+    wget -q --show-progress -O "$tmp_tar" "$as_url"
+    success "Download complete."
+
+    info "Extracting to /opt/android-studio..."
+    sudo tar -xzf "$tmp_tar" -C /opt/
+    rm -f "$tmp_tar"
+
+    # Create desktop entry for easy launching
+    if [ -d "$HOME/.local/share/applications" ]; then
+        cat > "$HOME/.local/share/applications/android-studio.desktop" << 'EOF'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Android Studio
+Icon=/opt/android-studio/bin/studio.svg
+Exec=/opt/android-studio/bin/studio.sh
+Categories=Development;IDE;
+Terminal=false
+StartupNotify=true
+EOF
+        success "Desktop entry created."
     fi
 
-    # Xcode CLT
-    if [ $HAS_XCODE_CLT -eq 0 ]; then
-        info "Installing Xcode Command Line Tools..."
-        xcode-select --install 2>/dev/null || true
-        warn "Xcode CLT installer launched. Please complete the popup, then re-run this script."
+    if [ -f "/opt/android-studio/bin/studio.sh" ]; then
+        success "Android Studio installed to /opt/android-studio"
     else
-        success "Xcode Command Line Tools already installed. Skipping."
-    fi
-
-    # CocoaPods
-    if [ $HAS_COCOAPODS -eq 0 ]; then
-        info "Installing CocoaPods..."
-        brew install cocoapods 2>/dev/null || sudo gem install cocoapods 2>/dev/null || true
-        success "CocoaPods installed."
-    else
-        success "CocoaPods already installed. Skipping."
-    fi
-
-    echo ""
-    success "macOS system dependencies done!"
-}
-
-install_dependencies() {
-    if [ "$OS_TYPE" = "linux" ]; then
-        install_dependencies_linux
-    elif [ "$OS_TYPE" = "macos" ]; then
-        install_dependencies_macos
+        warn "Android Studio installation may have failed."
+        warn "You can download manually from: https://developer.android.com/studio"
     fi
 }
 
@@ -588,13 +512,7 @@ install_android_sdk() {
 
     # Install cmdline-tools if missing
     if [ $HAS_ANDROID_CMDLINE -eq 0 ]; then
-        local cmdline_zip=""
-        if [ "$OS_TYPE" = "linux" ]; then
-            cmdline_zip="commandlinetools-linux-${ANDROID_CMDLINE_TOOLS_VERSION}_latest.zip"
-        elif [ "$OS_TYPE" = "macos" ]; then
-            cmdline_zip="commandlinetools-mac-${ANDROID_CMDLINE_TOOLS_VERSION}_latest.zip"
-        fi
-
+        local cmdline_zip="commandlinetools-linux-${ANDROID_CMDLINE_TOOLS_VERSION}_latest.zip"
         local download_url="https://dl.google.com/android/repository/${cmdline_zip}"
         local tmp_zip="/tmp/${cmdline_zip}"
 
@@ -671,7 +589,7 @@ configure_env() {
 
         local env_block="
 # ═══════════════════════════════════════════════════════════════════
-# Flutter Development Environment (auto-configured by setup_flutter.sh)
+# Flutter Android Development Environment (auto-configured by setup_flutter.sh)
 # ═══════════════════════════════════════════════════════════════════
 
 # Flutter SDK
@@ -688,23 +606,14 @@ export PATH=\"\$ANDROID_HOME/cmdline-tools/latest/bin:\$PATH\"
 export PATH=\"\$ANDROID_HOME/platform-tools:\$PATH\"
 export PATH=\"\$ANDROID_HOME/build-tools/${ANDROID_BUILD_TOOLS_VERSION}:\$PATH\"
 
-# Java (if installed via this script)
-$(if [ "$OS_TYPE" = "macos" ]; then
-    echo 'export JAVA_HOME="$(/usr/libexec/java_home -v 17 2>/dev/null || echo /opt/homebrew/opt/openjdk@17)"'
-elif [ "$OS_TYPE" = "linux" ]; then
-    echo 'export JAVA_HOME="/usr/lib/jvm/java-17-openjdk-amd64"'
-fi)
-
-# Chrome (for Flutter web development)
-$(if [ "$OS_TYPE" = "linux" ]; then
-    echo 'export CHROME_EXECUTABLE="$(which google-chrome-stable 2>/dev/null || which google-chrome 2>/dev/null || echo /usr/bin/google-chrome-stable)"'
-fi)
+# Java
+export JAVA_HOME=\"/usr/lib/jvm/java-17-openjdk-amd64\"
 # ═══════════════════════════════════════════════════════════════════"
 
         echo "$env_block" >> "$shell_rc"
         success "Environment variables added to ${shell_rc}"
 
-        if [ "$OS_TYPE" = "linux" ] && [ "$shell_rc" != "$profile_rc" ]; then
+        if [ "$shell_rc" != "$profile_rc" ]; then
             if ! grep -q "FLUTTER_HOME" "$profile_rc" 2>/dev/null; then
                 echo "$env_block" >> "$profile_rc"
                 success "Environment variables also added to ${profile_rc}"
@@ -724,9 +633,7 @@ fi)
     echo -e "  │  FLUTTER_HOME    = ${GREEN}${FLUTTER_DIR}${NC}"
     echo -e "  │  ANDROID_HOME    = ${GREEN}${ANDROID_SDK_DIR}${NC}"
     echo -e "  │  ANDROID_SDK_ROOT= ${GREEN}${ANDROID_SDK_DIR}${NC}"
-    if [ "$OS_TYPE" = "linux" ]; then
     echo -e "  │  JAVA_HOME       = ${GREEN}/usr/lib/jvm/java-17-openjdk-amd64${NC}"
-    fi
     echo -e "  │  PATH additions:"
     echo -e "  │    ${DIM}+ ${FLUTTER_DIR}/bin${NC}"
     echo -e "  │    ${DIM}+ ${ANDROID_SDK_DIR}/cmdline-tools/latest/bin${NC}"
@@ -785,29 +692,22 @@ print_summary() {
     echo -e "  ${CYAN}1.${NC} Restart your terminal or run:"
     echo -e "     ${DIM}source ${shell_rc}${NC}"
     echo ""
-    echo -e "  ${CYAN}2.${NC} Create a new Flutter project:"
+    echo -e "  ${CYAN}2.${NC} Open Android Studio and configure your emulator"
+    echo ""
+    echo -e "  ${CYAN}3.${NC} Create a new Flutter project:"
     echo -e "     ${DIM}flutter create my_app${NC}"
     echo ""
-    echo -e "  ${CYAN}3.${NC} Run your app:"
+    echo -e "  ${CYAN}4.${NC} Run your app on Android:"
     echo -e "     ${DIM}cd my_app && flutter run${NC}"
     echo ""
-    echo -e "  ${CYAN}4.${NC} Check setup anytime:"
+    echo -e "  ${CYAN}5.${NC} Check setup anytime:"
     echo -e "     ${DIM}flutter doctor${NC}"
     echo ""
     echo -e "  ${BOLD}Installed Locations:${NC}"
-    echo -e "     Flutter SDK:    ${GREEN}${FLUTTER_DIR}${NC}"
-    echo -e "     Android SDK:    ${GREEN}${ANDROID_SDK_DIR}${NC}"
+    echo -e "     Flutter SDK:      ${GREEN}${FLUTTER_DIR}${NC}"
+    echo -e "     Android SDK:      ${GREEN}${ANDROID_SDK_DIR}${NC}"
+    echo -e "     Android Studio:   ${GREEN}Check /opt/android-studio or snap${NC}"
     echo ""
-
-    if [ "$OS_TYPE" = "macos" ]; then
-        echo -e "  ${YELLOW}${BOLD}⚠  macOS Note:${NC}"
-        echo -e "     For iOS development, ensure you have Xcode installed"
-        echo -e "     from the Mac App Store and run:"
-        echo -e "     ${DIM}sudo xcodebuild -license accept${NC}"
-        echo -e "     ${DIM}sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer${NC}"
-        echo ""
-    fi
-
     echo -e "  ${DIM}Script completed at: $(date)${NC}"
     echo ""
 }
@@ -817,11 +717,12 @@ print_summary() {
 main() {
     print_banner
     detect_os
-    check_existing       # ← scans everything, shows status, asks to proceed
-    install_dependencies # ← only installs missing packages
-    install_flutter      # ← skips if already present
-    install_android_sdk  # ← skips installed components
-    configure_env        # ← skips if already configured
+    check_existing           # ← scans everything, shows status, asks to proceed
+    install_dependencies     # ← only installs missing packages
+    install_android_studio   # ← skips if already installed
+    install_flutter          # ← skips if already present
+    install_android_sdk      # ← skips installed components
+    configure_env            # ← skips if already configured
     configure_flutter
     verify_installation
     print_summary
