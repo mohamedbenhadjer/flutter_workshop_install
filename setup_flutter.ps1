@@ -1,5 +1,5 @@
-# ═══════════════════════════════════════════════════════════════════
-#  Flutter Development Environment Setup Script (Windows)
+# ===================================================================
+#  Flutter Android Development Environment Setup Script (Windows)
 #  Requires: Windows 10 or later, PowerShell 5.0+
 #
 #  This script will:
@@ -12,11 +12,11 @@
 #  Usage (Run as Administrator):
 #    Set-ExecutionPolicy Bypass -Scope Process -Force
 #    .\setup_flutter.ps1
-# ═══════════════════════════════════════════════════════════════════
+# ===================================================================
 
 #Requires -Version 5.0
 
-# ─── Configuration ─────────────────────────────────────────────────
+# --- Configuration -------------------------------------------------
 $ErrorActionPreference = "Stop"
 
 $FLUTTER_CHANNEL = "stable"
@@ -27,12 +27,12 @@ $INSTALL_DIR = "$env:USERPROFILE\development"
 $FLUTTER_DIR = "$INSTALL_DIR\flutter"
 $ANDROID_SDK_DIR = "$INSTALL_DIR\android-sdk"
 
-# ─── Status tracking ──────────────────────────────────────────────
+# --- Status tracking -----------------------------------------------
 $script:HAS_GIT = $false
 $script:HAS_JAVA = $false
-$script:HAS_VS_CPP = $false
 $script:HAS_FLUTTER = $false
 $script:HAS_DART = $false
+$script:HAS_ANDROID_STUDIO = $false
 $script:HAS_ANDROID_CMDLINE = $false
 $script:HAS_ANDROID_PLATFORM_TOOLS = $false
 $script:HAS_ANDROID_BUILD_TOOLS = $false
@@ -42,26 +42,26 @@ $script:HAS_ENV_CONFIGURED = $false
 $script:MISSING_COUNT = 0
 $script:INSTALLED_COUNT = 0
 
-# ─── Helper Functions ──────────────────────────────────────────────
+# --- Helper Functions -----------------------------------------------
 
 function Print-Banner {
     Write-Host ""
-    Write-Host "  ╔═══════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
-    Write-Host "  ║                                                           ║" -ForegroundColor Cyan
-    Write-Host "  ║        Flutter Dev Environment Setup (Windows)            ║" -ForegroundColor Cyan
-    Write-Host "  ║                                                           ║" -ForegroundColor Cyan
-    Write-Host "  ║   Automated installer for Windows 10/11                   ║" -ForegroundColor Cyan
-    Write-Host "  ║                                                           ║" -ForegroundColor Cyan
-    Write-Host "  ╚═══════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
+    Write-Host "  +===========================================================+" -ForegroundColor Cyan
+    Write-Host "  |                                                           |" -ForegroundColor Cyan
+    Write-Host "  |     Flutter Android Dev Environment Setup (Windows)       |" -ForegroundColor Cyan
+    Write-Host "  |                                                           |" -ForegroundColor Cyan
+    Write-Host "  |   Automated installer for Windows 10/11                   |" -ForegroundColor Cyan
+    Write-Host "  |                                                           |" -ForegroundColor Cyan
+    Write-Host "  +===========================================================+" -ForegroundColor Cyan
     Write-Host ""
 }
 
 function Print-Step {
     param([string]$StepNum, [string]$StepMsg)
     Write-Host ""
-    Write-Host "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Magenta
+    Write-Host "  ===========================================================" -ForegroundColor Magenta
     Write-Host "  STEP ${StepNum}: ${StepMsg}" -ForegroundColor Magenta
-    Write-Host "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Magenta
+    Write-Host "  ===========================================================" -ForegroundColor Magenta
 }
 
 function Info    { param([string]$Msg) Write-Host "  [i] $Msg" -ForegroundColor Blue }
@@ -76,18 +76,20 @@ function Status-Row {
     $paddedName = $Name.PadRight(30)
     if ($Found) {
         $script:INSTALLED_COUNT++
-        Write-Host "  |  " -NoNewline
-        Write-Host "[OK] $paddedName" -ForegroundColor Green -NoNewline
+        $label = '[OK] ' + $paddedName
+        Write-Host '  |  ' -NoNewline
+        Write-Host $label -ForegroundColor Green -NoNewline
         Write-Host " $Detail" -ForegroundColor DarkGray
     } else {
         $script:MISSING_COUNT++
-        Write-Host "  |  " -NoNewline
-        Write-Host "[--] $paddedName" -ForegroundColor Red -NoNewline
-        Write-Host " Not found - will install" -ForegroundColor Yellow
+        $label = '[--] ' + $paddedName
+        Write-Host '  |  ' -NoNewline
+        Write-Host $label -ForegroundColor Red -NoNewline
+        Write-Host ' Not found - will install' -ForegroundColor Yellow
     }
 }
 
-# ─── Check Prerequisites ──────────────────────────────────────────
+# --- Check Prerequisites -------------------------------------------
 
 function Check-Prerequisites {
     Print-Step "0" "Checking Prerequisites"
@@ -107,7 +109,7 @@ function Check-Prerequisites {
     }
 }
 
-# ─── Detect System ────────────────────────────────────────────────
+# --- Detect System -------------------------------------------------
 
 function Detect-System {
     Print-Step "1" "Detecting System Information"
@@ -128,7 +130,7 @@ function Detect-System {
     return $arch
 }
 
-# ─── Pre-Installation Check ──────────────────────────────────────
+# --- Pre-Installation Check ----------------------------------------
 
 function Check-Existing {
     Print-Step "2" "Scanning for Already-Installed Tools"
@@ -140,7 +142,7 @@ function Check-Existing {
     $script:MISSING_COUNT = 0
     $script:INSTALLED_COUNT = 0
 
-    # ── Git ──
+    # -- Git --
     Write-Host "  +-- Core Utilities -----------------------------------------------+" -ForegroundColor Cyan
     $ver = ""
     try {
@@ -151,7 +153,7 @@ function Check-Existing {
     Write-Host "  +----------------------------------------------------------------+" -ForegroundColor Cyan
     Write-Host ""
 
-    # ── Java ──
+    # -- Java --
     Write-Host "  +-- Java Runtime -------------------------------------------------+" -ForegroundColor Cyan
     $ver = ""
     try {
@@ -162,22 +164,26 @@ function Check-Existing {
     Write-Host "  +----------------------------------------------------------------+" -ForegroundColor Cyan
     Write-Host ""
 
-    # ── Visual Studio ──
-    Write-Host "  +-- Windows Build Tools ------------------------------------------+" -ForegroundColor Cyan
+    # -- Android Studio --
+    Write-Host "  +-- Android Studio -----------------------------------------------+" -ForegroundColor Cyan
     $ver = ""
-    $vsWhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-    if (Test-Path $vsWhere) {
-        $vsInstalls = & $vsWhere -products * -requires Microsoft.VisualStudio.Workload.NativeDesktop -property displayName 2>$null
-        if ($vsInstalls) {
-            $script:HAS_VS_CPP = $true
-            $ver = ($vsInstalls | Select-Object -First 1)
+    $androidStudioPaths = @(
+        "${env:ProgramFiles}\Android\Android Studio\bin\studio64.exe",
+        "${env:ProgramFiles(x86)}\Android\Android Studio\bin\studio64.exe",
+        "$env:LOCALAPPDATA\Programs\Android Studio\bin\studio64.exe"
+    )
+    foreach ($asPath in $androidStudioPaths) {
+        if (Test-Path $asPath) {
+            $script:HAS_ANDROID_STUDIO = $true
+            $ver = "installed @ $(Split-Path (Split-Path $asPath))"
+            break
         }
     }
-    Status-Row "Visual Studio (C++ Desktop)" $ver $script:HAS_VS_CPP
+    Status-Row "Android Studio" $ver $script:HAS_ANDROID_STUDIO
     Write-Host "  +----------------------------------------------------------------+" -ForegroundColor Cyan
     Write-Host ""
 
-    # ── Flutter & Dart ──
+    # -- Flutter & Dart --
     Write-Host "  +-- Flutter SDK --------------------------------------------------+" -ForegroundColor Cyan
     $ver = ""
     if (Test-Path "$FLUTTER_DIR\bin\flutter.bat") {
@@ -201,7 +207,7 @@ function Check-Existing {
     Write-Host "  +----------------------------------------------------------------+" -ForegroundColor Cyan
     Write-Host ""
 
-    # ── Android SDK ──
+    # -- Android SDK --
     Write-Host "  +-- Android SDK --------------------------------------------------+" -ForegroundColor Cyan
 
     $ver = ""
@@ -239,7 +245,7 @@ function Check-Existing {
     Write-Host "  +----------------------------------------------------------------+" -ForegroundColor Cyan
     Write-Host ""
 
-    # ── Environment Variables ──
+    # -- Environment Variables --
     Write-Host "  +-- Environment Variables ----------------------------------------+" -ForegroundColor Cyan
     $ver = ""
     $existingFlutterHome = [Environment]::GetEnvironmentVariable("FLUTTER_HOME", "User")
@@ -249,12 +255,14 @@ function Check-Existing {
     Status-Row "User env (FLUTTER_HOME, etc.)" $ver $script:HAS_ENV_CONFIGURED
     Write-Host "  +----------------------------------------------------------------+" -ForegroundColor Cyan
 
-    # ── Summary ──
+    # -- Summary --
     Write-Host ""
-    Write-Host "  +----------------------------------------------+"
-    Write-Host "  |  " -NoNewline; Write-Host "[OK] Already installed:   $($script:INSTALLED_COUNT)" -ForegroundColor Green
-    Write-Host "  |  " -NoNewline; Write-Host "[--] Missing / to install: $($script:MISSING_COUNT)" -ForegroundColor Red
-    Write-Host "  +----------------------------------------------+"
+    Write-Host '  +----------------------------------------------+'
+    $okSummary = '[OK] Already installed:   ' + $script:INSTALLED_COUNT
+    $misSummary = '[--] Missing / to install: ' + $script:MISSING_COUNT
+    Write-Host '  |  ' -NoNewline; Write-Host $okSummary -ForegroundColor Green
+    Write-Host '  |  ' -NoNewline; Write-Host $misSummary -ForegroundColor Red
+    Write-Host '  +----------------------------------------------+'
     Write-Host ""
 
     if ($script:MISSING_COUNT -eq 0) {
@@ -276,7 +284,7 @@ function Check-Existing {
     }
 }
 
-# ─── Install Git ──────────────────────────────────────────────────
+# --- Install Git ---------------------------------------------------
 
 function Install-GitForWindows {
     Print-Step "3a" "Git for Windows"
@@ -306,7 +314,7 @@ function Install-GitForWindows {
     }
 }
 
-# ─── Install Java JDK ────────────────────────────────────────────
+# --- Install Java JDK ----------------------------------------------
 
 function Install-JavaJDK {
     Print-Step "3b" "Java JDK 17 (Adoptium Temurin)"
@@ -332,41 +340,52 @@ function Install-JavaJDK {
     Success "Java JDK 17 installed."
 }
 
-# ─── Check Visual Studio ─────────────────────────────────────────
+# --- Install Android Studio ----------------------------------------
 
-function Check-VisualStudio {
-    Print-Step "3c" "Visual Studio / Build Tools"
+function Install-AndroidStudio {
+    Print-Step "3c" "Android Studio"
 
-    if ($script:HAS_VS_CPP) {
-        Success "Visual Studio with C++ Desktop workload already installed. Skipping."
+    if ($script:HAS_ANDROID_STUDIO) {
+        Success "Android Studio is already installed. Skipping."
         return
     }
 
-    Warn "Visual Studio with 'Desktop development with C++' workload NOT found."
-    Write-Host ""
-    Write-Host "  For Windows desktop Flutter development, you need Visual Studio" -ForegroundColor Yellow
-    Write-Host "  with the 'Desktop development with C++' workload installed." -ForegroundColor Yellow
-    Write-Host ""
-    Write-Host "  Download from: https://visualstudio.microsoft.com/downloads/" -ForegroundColor Cyan
-    Write-Host ""
+    Info "Downloading Android Studio..."
+    $asUrl = "https://redirector.gvt1.com/edgedl/android/studio/install/2024.2.2.13/android-studio-2024.2.2.13-windows.exe"
+    $asInstaller = "$env:TEMP\android-studio-installer.exe"
 
-    $downloadVS = Read-Host "  Would you like to download Visual Studio Build Tools now? [y/N]"
-    if ($downloadVS -match '^[Yy]$') {
-        Info "Downloading Visual Studio Build Tools..."
-        $vsbtUrl = "https://aka.ms/vs/17/release/vs_BuildTools.exe"
-        $vsbtInstaller = "$env:TEMP\vs_buildtools.exe"
-        Invoke-WebRequest -Uri $vsbtUrl -OutFile $vsbtInstaller -UseBasicParsing
-        Success "Downloaded VS Build Tools installer."
-        Info "Launching installer... Please select 'Desktop development with C++' workload."
-        Start-Process -FilePath $vsbtInstaller -ArgumentList "--add", "Microsoft.VisualStudio.Workload.NativeDesktop", "--includeRecommended", "--passive", "--norestart" -Wait
-        Remove-Item $vsbtInstaller -Force -ErrorAction SilentlyContinue
-        Success "Visual Studio Build Tools installation initiated."
+    Invoke-WebRequest -Uri $asUrl -OutFile $asInstaller -UseBasicParsing
+    Success "Android Studio installer downloaded."
+
+    Info "Installing Android Studio silently..."
+    Start-Process -FilePath $asInstaller -ArgumentList "/S" -Wait
+    Remove-Item $asInstaller -Force -ErrorAction SilentlyContinue
+
+    $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+
+    # Verify installation
+    $installed = $false
+    $androidStudioPaths = @(
+        "${env:ProgramFiles}\Android\Android Studio\bin\studio64.exe",
+        "${env:ProgramFiles(x86)}\Android\Android Studio\bin\studio64.exe",
+        "$env:LOCALAPPDATA\Programs\Android Studio\bin\studio64.exe"
+    )
+    foreach ($asPath in $androidStudioPaths) {
+        if (Test-Path $asPath) {
+            $installed = $true
+            break
+        }
+    }
+
+    if ($installed) {
+        Success "Android Studio installed successfully!"
     } else {
-        Warn "Skipping Visual Studio. Windows desktop development will not be available."
+        Warn "Android Studio installation may require a terminal restart to detect."
+        Warn "If silent install failed, download manually from: https://developer.android.com/studio"
     }
 }
 
-# ─── Install Flutter SDK ─────────────────────────────────────────
+# --- Install Flutter SDK --------------------------------------------
 
 function Install-FlutterSDK {
     Print-Step "4" "Flutter SDK"
@@ -398,7 +417,7 @@ function Install-FlutterSDK {
     Write-Host ""
 }
 
-# ─── Install Android SDK ─────────────────────────────────────────
+# --- Install Android SDK -------------------------------------------
 
 function Install-AndroidSDK {
     Print-Step "5" "Android SDK (Command-Line Tools)"
@@ -467,7 +486,7 @@ function Install-AndroidSDK {
     Success "Android licenses accepted."
 }
 
-# ─── Configure Environment Variables ─────────────────────────────
+# --- Configure Environment Variables --------------------------------
 
 function Configure-Environment {
     Print-Step "6" "Configuring Environment Variables (User-level)"
@@ -539,7 +558,7 @@ function Configure-Environment {
     Write-Host ""
 }
 
-# ─── Configure Flutter ────────────────────────────────────────────
+# --- Configure Flutter ----------------------------------------------
 
 function Configure-Flutter {
     Print-Step "7" "Configuring Flutter"
@@ -553,7 +572,7 @@ function Configure-Flutter {
     Success "Licenses accepted."
 }
 
-# ─── Verify Installation ─────────────────────────────────────────
+# --- Verify Installation --------------------------------------------
 
 function Verify-Installation {
     Print-Step "8" "Verifying Installation (flutter doctor)"
@@ -563,52 +582,52 @@ function Verify-Installation {
     Write-Host ""
 }
 
-# ─── Final Summary ───────────────────────────────────────────────
+# --- Final Summary --------------------------------------------------
 
 function Print-Summary {
     Write-Host ""
-    Write-Host "  ╔═══════════════════════════════════════════════════════════╗" -ForegroundColor Green
-    Write-Host "  ║                                                           ║" -ForegroundColor Green
-    Write-Host "  ║        Setup Complete!                                     ║" -ForegroundColor Green
-    Write-Host "  ║                                                           ║" -ForegroundColor Green
-    Write-Host "  ╚═══════════════════════════════════════════════════════════╝" -ForegroundColor Green
+    Write-Host "  +===========================================================+" -ForegroundColor Green
+    Write-Host "  |                                                           |" -ForegroundColor Green
+    Write-Host "  |        Setup Complete!                                     |" -ForegroundColor Green
+    Write-Host "  |                                                           |" -ForegroundColor Green
+    Write-Host "  +===========================================================+" -ForegroundColor Green
     Write-Host ""
     Write-Host "  Quick Start:" -ForegroundColor White
     Write-Host ""
     Write-Host "  1. Restart your terminal (or open a new PowerShell window)" -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "  2. Create a new Flutter project:" -ForegroundColor Cyan
+    Write-Host "  2. Open Android Studio and configure your emulator" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "  3. Create a new Flutter project:" -ForegroundColor Cyan
     Write-Host "     flutter create my_app" -ForegroundColor DarkGray
     Write-Host ""
-    Write-Host "  3. Run your app:" -ForegroundColor Cyan
+    Write-Host "  4. Run your app on Android:" -ForegroundColor Cyan
     Write-Host "     cd my_app; flutter run" -ForegroundColor DarkGray
     Write-Host ""
-    Write-Host "  4. Check setup anytime:" -ForegroundColor Cyan
+    Write-Host "  5. Check setup anytime:" -ForegroundColor Cyan
     Write-Host "     flutter doctor" -ForegroundColor DarkGray
     Write-Host ""
     Write-Host "  Installed Locations:" -ForegroundColor White
-    Write-Host "     Flutter SDK:    " -NoNewline; Write-Host "$FLUTTER_DIR" -ForegroundColor Green
-    Write-Host "     Android SDK:    " -NoNewline; Write-Host "$ANDROID_SDK_DIR" -ForegroundColor Green
-    Write-Host ""
-    Write-Host "  NOTE: For Windows desktop dev, ensure Visual Studio" -ForegroundColor Yellow
-    Write-Host "  with 'Desktop development with C++' workload is installed." -ForegroundColor Yellow
+    Write-Host "     Flutter SDK:      " -NoNewline; Write-Host "$FLUTTER_DIR" -ForegroundColor Green
+    Write-Host "     Android SDK:      " -NoNewline; Write-Host "$ANDROID_SDK_DIR" -ForegroundColor Green
+    Write-Host "     Android Studio:   " -NoNewline; Write-Host "Check Start Menu or Program Files" -ForegroundColor Green
     Write-Host ""
     Write-Host "  Script completed at: $(Get-Date)" -ForegroundColor DarkGray
     Write-Host ""
 }
 
-# ─── Main ─────────────────────────────────────────────────────────
+# --- Main -----------------------------------------------------------
 
 Print-Banner
 Check-Prerequisites
 $arch = Detect-System
-Check-Existing              # ← scans everything, shows status, asks to proceed
-Install-GitForWindows       # ← skips if already installed
-Install-JavaJDK             # ← skips if already installed
-Check-VisualStudio          # ← skips if already installed
-Install-FlutterSDK          # ← skips if already installed
-Install-AndroidSDK          # ← skips installed components
-Configure-Environment       # ← skips if already configured
+Check-Existing              # scans everything, shows status, asks to proceed
+Install-GitForWindows       # skips if already installed
+Install-JavaJDK             # skips if already installed
+Install-AndroidStudio       # skips if already installed
+Install-FlutterSDK          # skips if already installed
+Install-AndroidSDK          # skips installed components
+Configure-Environment       # skips if already configured
 Configure-Flutter
 Verify-Installation
 Print-Summary
